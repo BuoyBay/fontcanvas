@@ -1,0 +1,153 @@
+Sequential Structure PrivateFontMetrics
+    X As Double
+    Y As Double
+    Width As Double
+    Height As Double
+    Ascent As Double
+    Descent As Double
+    LineSpacing As Double
+End Structure
+
+Public Class PrivateFontException Inherits Exception
+    Public Sub Constructor(message As String, code As Integer = 0)
+        Super.Constructor(message, code)
+    End Sub
+End Class
+
+#If TargetWindows Then
+Private Declare Function OpenFont Lib "buoy_fontcanvas" Alias "bfc_open" (filePath As String) As Ptr
+Private Declare Function NativeError Lib "buoy_fontcanvas" Alias "bfc_error" (handle As Ptr) As String
+Private Declare Sub CloseFont Lib "buoy_fontcanvas" Alias "bfc_close" (handle As Ptr)
+Private Declare Function CountFonts Lib "buoy_fontcanvas" Alias "bfc_count" (handle As Ptr) As Integer
+Private Declare Function ReadName Lib "buoy_fontcanvas" Alias "bfc_name" (handle As Ptr, index As Integer, buffer As Ptr, capacity As Integer) As Integer
+Private Declare Function HasStyle Lib "buoy_fontcanvas" Alias "bfc_style" (handle As Ptr, index As Integer, styleBits As Integer) As Integer
+Private Declare Function LayoutFont Lib "buoy_fontcanvas" Alias "bfc_layout" (handle As Ptr, text As String, index As Integer, size As Double, styleBits As Integer, width As Integer, height As Integer, x As Double, baseline As Double, red As Double, green As Double, blue As Double, alpha As Double, rgba As Ptr, capacity As Integer, ByRef metrics As PrivateFontMetrics) As Integer
+#End If
+
+Public Function PrivateFontCanvasSupported() As Boolean
+#If TargetWindows Then
+    Return True
+#Else
+    Return False
+#End If
+End Function
+
+''' Owns an independent GDI+ private font collection. Use and release on one thread.
+Public Class PrivateFontCanvas
+    Private Property Handle As Ptr
+
+    Public Sub Constructor(filePath As String)
+        If filePath = "" Then Throw New InvalidArgumentException("Private font path is empty")
+#If TargetWindows Then
+        Dim handle As Ptr = OpenFont(filePath)
+        Dim message As String = NativeError(handle)
+        If message <> "" Then
+            CloseFont(handle)
+            Throw New PrivateFontException(message)
+        End If
+        Me.Handle = handle
+#Else
+        Throw New UnsupportedOperationException("PrivateFontCanvas requires Windows GDI+")
+#End If
+    End Sub
+
+    Public Property IsOpen As Boolean
+        Get
+            Return Me.Handle <> Nil
+        End Get
+    End Property
+
+    Private Sub RequireOpen()
+        If Not Me.IsOpen Then Throw New PrivateFontException("Private font collection is closed")
+    End Sub
+
+    Public Function FamilyCount() As Integer
+        Me.RequireOpen()
+#If TargetWindows Then
+        Return CountFonts(Me.Handle)
+#Else
+        Return 0
+#End If
+    End Function
+
+    Public Function FamilyName(index As Integer = 0) As String
+        Me.RequireOpen()
+        If index < 0 Or index >= Me.FamilyCount() Then Throw New InvalidArgumentException("Private font family index is out of range")
+#If TargetWindows Then
+        Dim buffer As New Bytes(1024)
+        If ReadName(Me.Handle, index, buffer.DataPtr(), 1024) <= 0 Then Throw New PrivateFontException("Private font family name unavailable")
+        Return CType(CType(buffer.DataPtr(), CString), String)
+#Else
+        Return ""
+#End If
+    End Function
+
+    Public Function StyleAvailable(index As Integer = 0, bold As Boolean = False, italic As Boolean = False) As Boolean
+        Me.RequireOpen()
+        If index < 0 Or index >= Me.FamilyCount() Then Throw New InvalidArgumentException("Private font family index is out of range")
+        Dim styleBits As Integer = 0
+        If bold Then styleBits += 1
+        If italic Then styleBits += 2
+#If TargetWindows Then
+        Return HasStyle(Me.Handle, index, styleBits) <> 0
+#Else
+        Return False
+#End If
+    End Function
+
+    Private Sub CheckStatus(status As Integer)
+        If status = 1 Then Throw New InvalidArgumentException("Invalid private-font text, size, geometry, color or family index")
+        If status = 2 Then Throw New PrivateFontException("Requested private font style is unavailable", status)
+        If status <> 0 Then Throw New PrivateFontException("GDI+ private font rendering failed", status)
+    End Sub
+
+    Public Function Measure(text As String, size As Double, index As Integer = 0, bold As Boolean = False, italic As Boolean = False, underline As Boolean = False) As PrivateFontMetrics
+        Me.RequireOpen()
+        Dim styleBits As Integer = 0
+        If bold Then styleBits += 1
+        If italic Then styleBits += 2
+        If underline Then styleBits += 4
+        Dim metrics As PrivateFontMetrics
+#If TargetWindows Then
+        Me.CheckStatus(LayoutFont(Me.Handle, text, index, size, styleBits, 0, 0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, Nil, 0, metrics))
+#End If
+        Return metrics
+    End Function
+
+    ''' Size, placement and metrics are raster pixels, with first baseline anchored at Y.
+    Public Function Rasterize(text As String, size As Double, width As Integer, height As Integer, x As Double, baseline As Double, red As Double, green As Double, blue As Double, alpha As Double = 1.0, index As Integer = 0, bold As Boolean = False, italic As Boolean = False, underline As Boolean = False) As Picture
+        Me.RequireOpen()
+        ' GDI+ PointF stores coordinates as 32-bit REAL, not Buoy Double.
+        ' Bound before narrowing; finite Doubles can otherwise become infinity.
+        If Not (x >= -3.4028234663852886e38 And x <= 3.4028234663852886e38) Then Throw New InvalidArgumentException("Raster x exceeds GDI+ coordinate range")
+        If Not (baseline >= -3.4028234663852886e38 And baseline <= 3.4028234663852886e38) Then Throw New InvalidArgumentException("Raster baseline exceeds GDI+ coordinate range")
+        If width <= 0 Or height <= 0 Or width > 16384 Or height > 16384 Then Throw New InvalidArgumentException("Raster dimensions must be in 1..16384")
+        If width * height > 16777216 Then Throw New InvalidArgumentException("Raster exceeds 64 MiB")
+        Dim styleBits As Integer = 0
+        If bold Then styleBits += 1
+        If italic Then styleBits += 2
+        If underline Then styleBits += 4
+        Dim metrics As PrivateFontMetrics
+        Dim byteCount As Integer = width * height * 4
+        Dim buffer As New Bytes(byteCount)
+#If TargetWindows Then
+        Me.CheckStatus(LayoutFont(Me.Handle, text, index, size, styleBits, width, height, x, baseline, red, green, blue, alpha, buffer.DataPtr(), byteCount, metrics))
+        Dim image As Picture = Picture.FromBuffer(buffer.DataPtr(), byteCount, 0, width, height)
+        If image = Nil Then Throw New PrivateFontException("Picture.FromBuffer rejected private font raster")
+        Return image
+#Else
+        Throw New UnsupportedOperationException("PrivateFontCanvas requires Windows GDI+")
+#End If
+    End Function
+
+    Public Sub Close()
+#If TargetWindows Then
+        If Me.Handle <> Nil Then CloseFont(Me.Handle)
+#End If
+        Me.Handle = Nil
+    End Sub
+
+    Public Sub Destructor()
+        Me.Close()
+    End Sub
+End Class
