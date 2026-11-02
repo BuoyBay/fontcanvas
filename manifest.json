@@ -1,1 +1,1 @@
-{"schema":1,"name":"fontcanvas","version":"0.1.0","description":"Windows private-font measurement and public Picture raster rendering","libraries":[{"libName":"buoy_fontcanvas","system":false,"minVersion":"0.1.0"}]}
+{"schema":1,"name":"fontcanvas","version":"0.1.0","description":"Measure private Windows fonts and render them to Pictures","libraries":[{"libName":"buoy_fontcanvas","system":false,"minVersion":"0.1.0"}]}
