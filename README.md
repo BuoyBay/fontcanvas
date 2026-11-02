@@ -1,4 +1,4 @@
-# Windows private-font metrics → Pictures
+# Windows private fonts to Pictures
 
 Opt-in Windows GDI+ private-font measurement and raster drawing. A
 `PrivateFontCanvas` owns an independent `PrivateFontCollection` loaded from one
