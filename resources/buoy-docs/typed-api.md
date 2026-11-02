@@ -46,8 +46,6 @@ Generated from the package source declarations. Platform guards are shown where 
 
 Returns: no value.
 
-## FontCanvas functions
-
 ### PrivateFontCanvasSupported
 
 `Public Function PrivateFontCanvasSupported() As Boolean`

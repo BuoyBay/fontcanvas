@@ -16,9 +16,4 @@ families/styles, then call `Measure` or `Rasterize`. Sizes and placement are
 pixels, with a caller-supplied first baseline. Close the collection on its owning
 application thread; copied Pictures remain valid afterward.
 
-The complete platform, ownership, input limits, native references and verified
-test instructions ship in [reference manual](reference.md). The checked executable
-example in this workspace is `tests/fontcanvas_test.bui`. Windows x64 has native
-execution evidence; non-Windows stubs have six-target compiler checks and a
-Linux unsupported-path execution test. Windows ARM64 needs its own bridge build
-and native verification.
+The [reference manual](reference.md) documents platform support, ownership, input limits and native APIs. The Windows bridge must be built for each deployment architecture; unsupported-target stubs do not provide native font collection operations.

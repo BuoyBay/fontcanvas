@@ -14,8 +14,7 @@ font file. It never installs/registers a GDI font or accesses Buoy's runtime-own
 collections. Its `Rasterize` result is copied through public `Picture.FromBuffer`;
 use `Graphics.DrawPicture` to compose it in Canvas or an offscreen Picture.
 
-Import `fontcanvas.FontCanvas As Fonts`; types remain unqualified. The checked
-example is fontcanvas_test.bui.
+Import `fontcanvas.FontCanvas As Fonts`; types remain unqualified.
 
 | API | Behavior |
 | --- | --- |
@@ -64,32 +63,16 @@ on construction. The platform predicate is safe everywhere. Existing built-in
 `Graphics.DrawString` font selection is unchanged; only explicit public-image
 composition uses this package.
 
-## Build and verify
+## Native build requirements
 
-Run `python3 tools/build_fontcanvas.py` to cross-build the Windows x64 bridge with
-MinGW, check sources on six desktop targets, and seal matching `packages/`/`dist/`
-archives. `--cxx` and `--target` select another Windows compiler/architecture;
-the resulting PE machine is validated. Only source-receipt-matching native slices
-are staged. No ARM64 Windows slice or execution is claimed by the default build.
+The C++ bridge is Windows-specific and requires a matching Windows compiler,
+SDK and import-library toolchain. Compile it for the same architecture as the
+consumer. Other platforms expose the capability predicate but reject collection
+construction.
 
-Maintainers run the private validation suite before release. See the repository README for public build instructions.
-
-Windows x64 native C++ and sealed Buoy tests passed. The private-only fixture's
-AAA width at32px was57.599998px, ascent25.6px and descent6.4px, matching its
-1000-em metadata. Native GDI enumeration remained empty for the fixture before,
-during and after private collection use. Pixel tests verified baseline placement,
-partial-alpha red RGBA conversion, actual DrawPicture composition, copied-Picture
-lifetime after Close, and independent collection lifetimes. Invalid files,
-missing styles, malformed input, unsafe sizes and invalid buffers were rejected.
-The Linux unsupported constructor path also executed successfully.
-
-The bridge statically links its MinGW C++/GCC/thread runtime, leaving only
-Windows system DLL imports. The associated notices ship in `resources/licenses/`.
-The verifier copies every Buoy-staged runtime DLL and explicitly waits for the
-Windows process with redirected output and recorded exit status. Native buffer
-capacities are passed explicitly: Buoy `New Bytes(capacity)` reserves memory but
-leaves Count at0. These local packaging/buffer problems were fixed during testing;
-they are not upstream defects.
+Native buffer capacities are explicit: `New Bytes(capacity)` reserves storage
+without increasing Count. Raster results cross the public API as copied Pictures.
+The associated compiler-runtime notices remain in `resources/licenses/`.
 
 ## Native references
 
@@ -97,6 +80,5 @@ they are not upstream defects.
 - Native font metrics
 - Bitmap LockBits and stride
 - ARGB versus premultiplied PARGB
-
 
 [Typed API](typed-api.md) · [Getting started](getting-started.md)

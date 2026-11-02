@@ -1,6 +1,6 @@
 # Measure private Windows fonts and render them to Pictures
 
-Opt-in Windows GDI+ private-font measurement and raster drawing for Buoy. A
+Opt-in Windows GDI+ private-font measurement and raster drawing. A
 `PrivateFontCanvas` owns an independent `PrivateFontCollection` loaded from one
 font file. It never installs/registers a GDI font or accesses Buoy's runtime-owned
 collections. Its `Rasterize` result is copied through public `Picture.FromBuffer`;
@@ -54,7 +54,6 @@ On your own machine, install Buoy and run:
 buoy ai init --both
 ```
 
-The generated agent files and editor settings stay local and are ignored by Git.
 
 ## Contributing
 
